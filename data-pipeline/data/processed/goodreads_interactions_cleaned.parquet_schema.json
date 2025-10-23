@@ -1,0 +1,12 @@
+{
+  "started_at":"object",
+  "date_updated":"object",
+  "read_at":"object",
+  "review_text_incomplete":"object",
+  "rating":"int64",
+  "is_read":"boolean",
+  "book_id":"int64",
+  "review_id":"object",
+  "date_added":"object",
+  "user_id":"object"
+}

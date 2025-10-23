@@ -3,48 +3,35 @@ import numpy as np
 import ast
 import os
 import logging
+import multiprocessing
+from tqdm import tqdm
+from concurrent.futures import ProcessPoolExecutor
 
-# ------------------------------
-# Safe parsing of values
-# ------------------------------
+# Windows safety
+if __name__ == "__main__":
+    multiprocessing.set_start_method("spawn", force=True)
+
+# ---------------------------------------------------------------------
+# Safe parsing helpers
+# ---------------------------------------------------------------------
 def safe_parse(val):
-    """Parse a value safely into list/dict or leave as string."""
-    # Already a NumPy array → convert to list
     if isinstance(val, np.ndarray):
         return val.tolist()
-    
-    # Already list/dict → keep as is
     if isinstance(val, (list, dict)):
         return val
-    
-    # NaN / None → empty list
     if val is None or (isinstance(val, float) and pd.isna(val)):
         return []
-    
-    # Strings that look like lists/dicts
     val_str = str(val).strip()
-    if val_str.startswith('[') or val_str.startswith('{'):
+    if val_str.startswith("[") or val_str.startswith("{"):
         try:
             parsed = ast.literal_eval(val_str)
             if isinstance(parsed, (list, dict)):
                 return parsed
-            return val_str
         except Exception:
-            return val_str
-    
-    # Otherwise, return stripped string
+            pass
     return val_str
 
-# ------------------------------
-# Flatten nested columns
-# ------------------------------
 def flatten_column(val, key=None):
-    """
-    Convert list/dict values into simple list or string.
-    - Lists of dicts: extract 'name' if exists
-    - Lists of strings: keep as is
-    - Dicts: keep as string
-    """
     if isinstance(val, list):
         flattened = []
         for item in val:
@@ -60,38 +47,61 @@ def flatten_column(val, key=None):
     else:
         return val
 
-# ------------------------------
-# Main cleaning function
-# ------------------------------
-def clean_goodreads_df(df: pd.DataFrame, save=True, out_dir="../data/processed") -> pd.DataFrame:
-    logging.info(f"🔹 Cleaning Goodreads data (rows={len(df)})")
+# ---------------------------------------------------------------------
+# Column cleaning
+# ---------------------------------------------------------------------
+def clean_column(df_col):
+    col_name, col_data = df_col
+    if pd.api.types.is_numeric_dtype(col_data):
+        col_data = pd.to_numeric(col_data, errors='coerce').fillna(0)
+        if pd.api.types.is_integer_dtype(col_data):
+            col_data = col_data.astype(int)
+        return col_name, col_data, None
+
+    elif pd.api.types.is_object_dtype(col_data):
+        col_data_parsed = col_data.apply(safe_parse)
+        col_flat = None
+        if col_data_parsed.apply(lambda x: isinstance(x, (list, dict))).any():
+            col_flat = col_data_parsed.apply(flatten_column)
+        return col_name, col_data_parsed, col_flat
+
+    else:
+        col_data = col_data.fillna(0)
+        return col_name, col_data, None
+
+# ---------------------------------------------------------------------
+# Main cleaner with progress & timing
+# ---------------------------------------------------------------------
+def clean_goodreads_df_parallel(df: pd.DataFrame, save=True, out_dir="../data/processed", file_name="goodreads_cleaned.parquet") -> pd.DataFrame:
+    logging.info(f"🔹 Cleaning Goodreads data (rows={len(df)}, cols={len(df.columns)})")
     df = df.copy()
-    
-    for col in df.columns:
-        # Numeric columns
-        if pd.api.types.is_numeric_dtype(df[col]):
-            df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
-            if pd.api.types.is_integer_dtype(df[col]):
-                df[col] = df[col].astype(int)
-        
-        # Object / String columns
-        elif pd.api.types.is_object_dtype(df[col]):
-            df[col] = df[col].apply(safe_parse)
-            
-            # Flatten nested columns dynamically
-            # For list/dict columns, create a new column with '_flat' suffix
-            flattened_col_name = f"{col}_flat"
-            df[flattened_col_name] = df[col].apply(flatten_column)
-        
-        # Other types
-        else:
-            df[col] = df[col].fillna(0)
-    
-    # Optional saving
+
+    columns = [(col, df[col]) for col in df.columns]
+    cleaned = []
+
+    try:
+        with ProcessPoolExecutor() as executor:
+            for result in tqdm(executor.map(clean_column, columns), total=len(columns), desc="🧹 Cleaning columns"):
+                cleaned.append(result)
+    except Exception as e:
+        logging.warning(f"⚠️ Parallel cleaning failed: {e}. Falling back to sequential mode.")
+        cleaned = [clean_column(c) for c in tqdm(columns, desc="🧹 Sequential cleaning")]
+
+    for col_name, col_data, col_flat in cleaned:
+        df[col_name] = col_data
+        if col_flat is not None:
+            df[f"{col_name}_flat"] = col_flat.apply(lambda x: ", ".join(map(str, x)) if isinstance(x, list) else str(x))
+
     if save:
         os.makedirs(out_dir, exist_ok=True)
-        file_path = os.path.join(out_dir, "goodreads_cleaned.csv")
-        df.to_csv(file_path, index=False)
+        file_path = os.path.join(out_dir, file_name)
+        df.to_parquet(file_path, engine="pyarrow", index=False)
         logging.info(f"✅ Cleaned data saved to {file_path}")
-    
+
+        # Save schema snapshot
+        schema_path = os.path.join(out_dir, f"{file_name}_schema.json")
+        schema_info = {col: str(df[col].dtype) for col in df.columns}
+        pd.Series(schema_info).to_json(schema_path, indent=2)
+        logging.info(f"📄 Schema saved to {schema_path}")
+
     return df
