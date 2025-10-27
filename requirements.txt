@@ -9,3 +9,5 @@ seaborn
 jupyter
 apache-airflow
 apache-airflow-providers-google
+numpy
+great-expectations

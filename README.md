@@ -49,6 +49,7 @@ pip install -r requirements.txt
 The variable set is only for this instance of terminal and will not affect others.
 ```bash
 export AIRFLOW_HOME=. [point this to the absolute path of config folder of the cloned repository]
+for windows do this $env:AIRFLOW_HOME = "sample path"
 ```
 
 - Request access to gcp credentials [Access credentials will be shared per user basis].
