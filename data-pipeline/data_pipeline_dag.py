@@ -80,7 +80,15 @@ with DAG(
         configuration={
             "query": {
                 "query": """
-                    SELECT * FROM `recommendation-system-475301.books.goodreads_interactions_mystery_thriller_crime` LIMIT 10
+                    SELECT 
+                        'books' as table_type,
+                        COUNT(*) as record_count
+                    FROM `recommendation-system-475301.books.goodreads_books_mystery_thriller_crime`
+                    UNION ALL
+                    SELECT 
+                        'interactions' as table_type,
+                        COUNT(*) as record_count
+                    FROM `recommendation-system-475301.books.goodreads_interactions_mystery_thriller_crime`
                 """,
                 "useLegacySql": False,
             }

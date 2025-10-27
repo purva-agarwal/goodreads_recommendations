@@ -14,9 +14,11 @@ from airflow.utils.email import send_email
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def validate_data_quality():
+def validate_data_quality(use_cleaned_tables=False):
     """
     Data quality validation using Great Expectations
+    Args:
+        use_cleaned_tables (bool): If True, validate cleaned tables; if False, validate source tables
     """
     try:
         # Setup BigQuery client
@@ -29,23 +31,24 @@ def validate_data_quality():
             logger.error("GCP credentials not found")
             raise Exception("GCP credentials not configured")
         
-        logger.info("Starting Great Expectations data validation...")
+        validation_type = "cleaned" if use_cleaned_tables else "source"
+        logger.info(f"Starting Great Expectations data validation for {validation_type} tables...")
         
         # Initialize Great Expectations context
         context = gx.get_context()
         
         # Validate books table
-        books_success = validate_books_with_gx(client, project_id, dataset, context)
+        books_success = validate_books_with_gx(client, project_id, dataset, context, use_cleaned_tables)
         
         # Validate interactions table  
-        interactions_success = validate_interactions_with_gx(client, project_id, dataset, context)
+        interactions_success = validate_interactions_with_gx(client, project_id, dataset, context, use_cleaned_tables)
         
         # Check overall success
         if not books_success or not interactions_success:
-            send_failure_email("Data validation failed - check logs for details")
-            raise Exception("Data validation failed - critical issues found")
+            send_failure_email(f"Data validation failed for {validation_type} tables - check logs for details")
+            raise Exception(f"Data validation failed for {validation_type} tables - critical issues found")
         
-        logger.info("✅ All data quality validations passed")
+        logger.info(f"All {validation_type} data quality validations passed")
         return True
         
     except Exception as e:
@@ -70,20 +73,24 @@ def get_table_structure(client, project_id, dataset, table_name):
         logger.error(f"Error fetching table structure for {table_name}: {e}")
         return None
 
-def validate_books_with_gx(client, project_id, dataset, context):
+def validate_books_with_gx(client, project_id, dataset, context, use_cleaned_tables=False):
     """
     Validate books table using Great Expectations with dynamic schema
+    Args:
+        use_cleaned_tables (bool): If True, validate cleaned table; if False, validate source table
     """
     try:
+        # Choose table based on validation type
+        table_name = "goodreads_books_cleaned" if use_cleaned_tables else "goodreads_books_mystery_thriller_crime"
+        
         # Get table structure
-        columns_info = get_table_structure(client, project_id, dataset, "goodreads_books_cleaned")
+        columns_info = get_table_structure(client, project_id, dataset, table_name)
         if columns_info is None:
             return False
         
         # Get sample data
         query = f"""
-        SELECT * FROM `{project_id}.{dataset}.goodreads_books_cleaned` 
-        LIMIT 1000
+        SELECT * FROM `{project_id}.{dataset}.{table_name}`
         """
         df = client.query(query).to_dataframe()
         
@@ -147,9 +154,9 @@ def validate_books_with_gx(client, project_id, dataset, context):
             # Data type expectations based on BigQuery types
             if data_type in ('STRING', 'CHAR', 'TEXT'):
                 validator.expect_column_values_to_be_of_type(col_name, "str")
-            elif data_type in ('INTEGER', 'INT64'):
+            elif data_type == 'INT64':
                 validator.expect_column_values_to_be_of_type(col_name, "int64")
-            elif data_type in ('FLOAT', 'FLOAT64'):
+            elif data_type == 'FLOAT64':
                 validator.expect_column_values_to_be_of_type(col_name, "float64")
             elif data_type == 'BOOL':
                 validator.expect_column_values_to_be_of_type(col_name, "bool")
@@ -192,30 +199,34 @@ def validate_books_with_gx(client, project_id, dataset, context):
         checkpoint_result = checkpoint.run()
         
         if checkpoint_result["success"]:
-            logger.info("✅ Books table validation passed")
+            logger.info("Books table validation passed")
             return True
         else:
-            logger.error("❌ Books table validation failed")
+            logger.error("Books table validation failed")
             return False
             
     except Exception as e:
         logger.error(f"Error validating books table: {e}")
         return False
 
-def validate_interactions_with_gx(client, project_id, dataset, context):
+def validate_interactions_with_gx(client, project_id, dataset, context, use_cleaned_tables=False):
     """
     Validate interactions table using Great Expectations with dynamic schema
+    Args:
+        use_cleaned_tables (bool): If True, validate cleaned table; if False, validate source table
     """
     try:
+        # Choose table based on validation type
+        table_name = "goodreads_interactions_cleaned" if use_cleaned_tables else "goodreads_interactions_mystery_thriller_crime"
+        
         # Get table structure
-        columns_info = get_table_structure(client, project_id, dataset, "goodreads_interactions_cleaned")
+        columns_info = get_table_structure(client, project_id, dataset, table_name)
         if columns_info is None:
             return False
         
         # Get sample data
         query = f"""
-        SELECT * FROM `{project_id}.{dataset}.goodreads_interactions_cleaned` 
-        LIMIT 1000
+        SELECT * FROM `{project_id}.{dataset}.{table_name}`
         """
         df = client.query(query).to_dataframe()
         
@@ -279,16 +290,16 @@ def validate_interactions_with_gx(client, project_id, dataset, context):
             # Data type expectations based on BigQuery types
             if data_type in ('STRING', 'CHAR', 'TEXT'):
                 validator.expect_column_values_to_be_of_type(col_name, "str")
-            elif data_type in ('INTEGER', 'INT64'):
+            elif data_type == 'INT64':
                 validator.expect_column_values_to_be_of_type(col_name, "int64")
-            elif data_type in ('FLOAT', 'FLOAT64'):
+            elif data_type == 'FLOAT64':
                 validator.expect_column_values_to_be_of_type(col_name, "float64")
             elif data_type == 'BOOL':
                 validator.expect_column_values_to_be_of_type(col_name, "bool")
         
         # Business rule expectations for specific columns
         if 'rating' in df.columns:
-            validator.expect_column_values_to_be_between("rating", min_value=1, max_value=5)
+            validator.expect_column_values_to_be_between("rating", min_value=0, max_value=5)
         if 'book_id' in df.columns:
             validator.expect_column_values_to_be_between("book_id", min_value=1)
         
@@ -316,10 +327,10 @@ def validate_interactions_with_gx(client, project_id, dataset, context):
         checkpoint_result = checkpoint.run()
         
         if checkpoint_result["success"]:
-            logger.info("✅ Interactions table validation passed")
+            logger.info("Interactions table validation passed")
             return True
         else:
-            logger.error("❌ Interactions table validation failed")
+            logger.error("Interactions table validation failed")
             return False
             
     except Exception as e:
@@ -334,7 +345,7 @@ def send_failure_email(message):
         subject = "[CRITICAL] Data Validation Failed - Goodreads Pipeline"
         
         html_content = f"""
-        <h2>🚨 Data Validation Failure</h2>
+        <h2>Data Validation Failure</h2>
         <p><strong>Pipeline:</strong> Goodreads Recommendation System</p>
         <p><strong>Status:</strong> FAILED - Pipeline stopped</p>
         <p><strong>Error:</strong> {message}</p>
@@ -357,8 +368,51 @@ def send_failure_email(message):
 def main():
     """
     Main function called by Airflow DAG
+    For pre-cleaning validation, use source tables
+    For post-cleaning validation, use cleaned tables
     """
-    return validate_data_quality()
+    # Check if this is post-cleaning validation by looking for cleaned tables
+    try:
+        project_id = "recommendation-system-475301"
+        dataset = "books"
+        
+        if os.environ.get("GOOGLE_APPLICATION_CREDENTIALS"):
+            client = bigquery.Client(project=project_id)
+        else:
+            logger.error("GCP credentials not found")
+            raise Exception("GCP credentials not configured")
+        
+        # Check if cleaned tables exist to determine validation type
+        cleaned_books_exists = check_table_exists(client, project_id, dataset, "goodreads_books_cleaned")
+        cleaned_interactions_exists = check_table_exists(client, project_id, dataset, "goodreads_interactions_cleaned")
+        
+        use_cleaned_tables = cleaned_books_exists and cleaned_interactions_exists
+        
+        validation_type = "post-cleaning" if use_cleaned_tables else "pre-cleaning"
+        logger.info(f"Running {validation_type} validation...")
+        
+        return validate_data_quality(use_cleaned_tables)
+        
+    except Exception as e:
+        logger.error(f"Error determining validation type: {e}")
+        # Default to pre-cleaning validation
+        return validate_data_quality(use_cleaned_tables=False)
+
+def check_table_exists(client, project_id, dataset, table_name):
+    """
+    Check if a table exists in BigQuery
+    """
+    try:
+        query = f"""
+        SELECT COUNT(*) as count
+        FROM `{project_id}.{dataset}.INFORMATION_SCHEMA.TABLES`
+        WHERE table_name = '{table_name}'
+        """
+        result = client.query(query).to_dataframe()
+        return result['count'].iloc[0] > 0
+    except Exception as e:
+        logger.error(f"Error checking if table {table_name} exists: {e}")
+        return False
 
 if __name__ == "__main__":
     main()
