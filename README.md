@@ -99,6 +99,7 @@ The `goodreads_recommendation_pipeline` DAG orchestrates a comprehensive data pr
 ### Pipeline Components (DAG Tasks)
 
 #### 1. **Data Reading & Validation**
+
 - **Task ID:** `read_data_from_bigquery`
 - **Type:** `BigQueryInsertJobOperator`
 
@@ -111,6 +112,7 @@ The `goodreads_recommendation_pipeline` DAG orchestrates a comprehensive data pr
   - Provides baseline metrics for data quality assessment
 
 #### 2. **Results Logging**
+
 - **Task ID:** `log_bq_results`
 - **Type:** `PythonOperator`
 
@@ -123,6 +125,7 @@ The `goodreads_recommendation_pipeline` DAG orchestrates a comprehensive data pr
   - Enables monitoring of data pipeline health
 
 #### 3. **Pre-Cleaning Data Validation**
+
 - **Task ID:** `validate_data_quality`
 - **Type:** `PythonOperator`
 
@@ -136,7 +139,18 @@ The `goodreads_recommendation_pipeline` DAG orchestrates a comprehensive data pr
   - Stops pipeline execution if critical data quality issues are found
   - Sends failure notifications via email for immediate alerting
 
+- **Validation Logic:**
+  - **Books Table (Source):**
+    - **Critical Field Validation:** Ensures `book_id` and `title` are never null
+    - **Business Rule:** These are essential identifiers that cannot be missing
+    - **Zero Tolerance:** Any null values cause validation failure
+  - **Interactions Table (Source):**
+    - **Referential Integrity:** Ensures both `user_id` and `book_id` are present
+    - **Relationship Validation:** These are foreign keys that must exist
+    - **Zero Tolerance:** Missing identifiers would break user-book relationships
+
 #### 4. **Data Cleaning**
+
 - **Task ID:** `clean_data`
 - **Type:** `PythonOperator`
 
@@ -151,6 +165,7 @@ The `goodreads_recommendation_pipeline` DAG orchestrates a comprehensive data pr
   - Creates cleaned tables in BigQuery for downstream processing
 
 #### 5. **Post-Cleaning Validation**
+
 - **Task ID:** `validate_cleaned_data`
 - **Type:** `PythonOperator`
 
@@ -163,7 +178,19 @@ The `goodreads_recommendation_pipeline` DAG orchestrates a comprehensive data pr
   - Checks for any new issues introduced during cleaning
   - Provides confidence in data quality for feature engineering
 
+- **Validation Logic:**
+  - **Books Table (Cleaned):**
+    - **Data Integrity:** Ensures cleaning process didn't introduce new nulls in `title`
+    - **Range Validation:** Validates `publication_year` is reasonable (1000-2030)
+    - **Business Rules:** `num_pages` must be positive and realistic (≤10,000 pages)
+    - **ML Readiness:** Prevents unrealistic data from entering the ML pipeline
+  - **Interactions Table (Cleaned):**
+    - **Data Integrity Preservation:** Ensures cleaning didn't corrupt essential fields
+    - **Rating Validation:** Validates ratings are within expected range (0-5)
+    - **ML Pipeline Readiness:** Ensures data is suitable for recommendation algorithms
+
 #### 6. **Feature Engineering**
+
 - **Task ID:** `feature_engg_data`
 - **Type:** `PythonOperator`
 
@@ -185,6 +212,7 @@ The `goodreads_recommendation_pipeline` DAG orchestrates a comprehensive data pr
     - Rating patterns and review sentiment
 
 #### 7. **Data Normalization**
+
 - **Task ID:** `normalize_data`
 - **Type:** `PythonOperator`
 
@@ -211,6 +239,105 @@ start → read_data_from_bigquery → log_bq_results → validate_data_quality
 - **Logging:** Comprehensive logging at each stage for debugging and monitoring
 - **Data Quality Gates:** Pipeline stops if critical data quality issues are detected
 - **BigQuery Integration:** Seamless integration with Google Cloud Platform for scalable data processing
+
+### Data Quality Validation Framework
+
+The pipeline implements a comprehensive data quality validation system using BigQuery SQL queries that operates at two critical stages: **pre-cleaning** and **post-cleaning**. This ensures data integrity throughout the entire processing workflow.
+
+#### **Validation Architecture**
+
+The validation system uses the `AnomalyDetection` class with the following key components:
+
+- **BigQuery Integration:** Direct SQL query execution for scalable validation
+- **Progressive Validation:** Different validation rules for source vs. cleaned data
+- **Zero Tolerance Policy:** All validations use `max_allowed: 0` - any violations stop the pipeline
+- **Comprehensive Logging:** Detailed validation results logged for monitoring
+- **Email Alerts:** Automatic failure notifications sent to stakeholders
+
+#### **Pre-Cleaning Validation (Source Data)**
+
+**Purpose:** Validates raw data before any processing to ensure basic data integrity.
+
+**Books Table Validation:**
+
+```sql
+-- Critical field validation
+SELECT COUNT(*) as null_count
+FROM `project.books.goodreads_books_mystery_thriller_crime`
+WHERE book_id IS NULL OR title IS NULL
+```
+
+**Interactions Table Validation:**
+
+```sql
+-- Referential integrity validation
+SELECT COUNT(*) as null_count
+FROM `project.books.goodreads_interactions_mystery_thriller_crime`
+WHERE user_id IS NULL OR book_id IS NULL
+```
+
+**Validation Logic:**
+
+- **Critical Field Validation:** Ensures `book_id` and `title` are never null
+- **Referential Integrity:** Ensures both `user_id` and `book_id` are present
+- **Business Rule:** These are essential identifiers that cannot be missing
+- **Zero Tolerance:** Any null values cause validation failure
+
+#### **Post-Cleaning Validation (Cleaned Data)**
+
+**Purpose:** Validates cleaned data to ensure business rules and ML readiness requirements are met.
+
+**Books Table Validation:**
+
+```sql
+-- Data integrity and range validation
+SELECT COUNT(*) as invalid_count
+FROM `project.books.goodreads_books_cleaned_staging`
+WHERE title IS NULL 
+   OR publication_year IS NULL 
+   OR publication_year < 1000 
+   OR publication_year > 2030
+   OR num_pages IS NULL 
+   OR num_pages <= 0 
+   OR num_pages > 10000
+```
+
+**Interactions Table Validation:**
+
+```sql
+-- Data integrity and rating validation
+SELECT COUNT(*) as invalid_count
+FROM `project.books.goodreads_interactions_cleaned_staging`
+WHERE user_id IS NULL 
+   OR book_id IS NULL 
+   OR rating < 0 
+   OR rating > 5
+```
+
+**Validation Logic:**
+
+- **Data Integrity:** Ensures cleaning process didn't introduce new nulls
+- **Range Validation:** Validates `publication_year` is reasonable (1000-2030)
+- **Business Rules:** `num_pages` must be positive and realistic (≤10,000 pages)
+- **Rating Validation:** Validates ratings are within expected range (0-5)
+- **ML Readiness:** Ensures data is suitable for recommendation algorithms
+
+#### **Key Design Principles**
+
+1. **Progressive Validation:** Pre-cleaning focuses on critical fields, post-cleaning adds business rule validation
+2. **Zero Tolerance:** All validations use `max_allowed: 0` - any violations stop the pipeline
+3. **Business Logic:** Range checks ensure data makes business sense
+4. **ML Pipeline Readiness:** Post-cleaning validation ensures data is suitable for machine learning
+5. **Comprehensive Error Handling:** Detailed logging and email notifications for failures
+
+#### **Pipeline Integration**
+
+The validation system integrates with the Airflow DAG at two critical points:
+
+1. **Pre-cleaning** (`validate_data_quality` task): Validates source data before any processing
+2. **Post-cleaning** (`validate_cleaned_data` task): Validates cleaned data before feature engineering
+
+This ensures data quality gates at both ends of the cleaning process, preventing bad data from propagating through the ML pipeline and ensuring the final dataset meets the requirements for recommendation system training.
 
 ### Configuration & Environment
 
@@ -251,7 +378,7 @@ This section highlights key findings from our exploratory data analysis and bias
 
 - **BigQuery Connection:** Connected to `recommendation-system-475301` project and queried `goodreads_books_mystery_thriller_crime` table
 - **Data Sampling:** Retrieved 10,000 rows with 7 columns (book_id, title, authors, average_rating, ratings_count, popular_shelves, description)
-- **Data Quality Assessment:** 
+- **Data Quality Assessment:**
   - Zero missing values across all columns
   - 9,599 unique titles out of 10,000 books
   - 235 unique average rating values
@@ -285,7 +412,7 @@ This section highlights key findings from our exploratory data analysis and bias
 
 - **Data Source:** BigQuery table `goodreads_features_cleaned` with 10,000+ records
 - **Mitigation Method:** Group-level shrinkage with λ = 0.5 to pull extreme group means toward global mean
-- **Metrics Analyzed:** 
+- **Metrics Analyzed:**
   - Average rating per group (before/after mitigation)
   - Percentage read per group (behavioral metric, unchanged)
 - **Fairness Calculation:** Equity index based on variance reduction and mean change penalties
