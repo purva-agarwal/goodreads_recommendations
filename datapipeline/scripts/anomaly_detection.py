@@ -38,7 +38,7 @@ class AnomalyDetection:
         """
         # Set Google Application Credentials for BigQuery access
         # Uses AIRFLOW_HOME environment variable to locate credentials file
-        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = os.environ.get("AIRFLOW_HOME")+"/gcp_credentials.json"
+        # os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = os.environ.get("AIRFLOW_HOME")+"/gcp_credentials.json"
         
         # Initialize logging for anomaly detection operations
         self.logger = get_logger("anomaly_detection")

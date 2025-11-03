@@ -1,3 +1,7 @@
+
+
+
+
 import os
 from google.cloud import bigquery
 from datapipeline.scripts.logger_setup import get_logger
@@ -6,8 +10,8 @@ class GoodreadsNormalizedSplitter:
 
     def __init__(self):
 
-        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = os.environ.get("AIRFLOW_HOME") + "/gcp_credentials.json"
-        
+        # os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = os.environ.get("AIRFLOW_HOME") + "/gcp_credentials.json"
+
         self.logger = get_logger("normalized_split")
         self.client = bigquery.Client()
         self.project_id = self.client.project

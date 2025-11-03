@@ -33,7 +33,7 @@ class StagingTablePromoter:
         """
         # Set Google Application Credentials for BigQuery access
         # Uses AIRFLOW_HOME environment variable to locate credentials file
-        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = os.environ.get("AIRFLOW_HOME", ".") + "/gcp_credentials.json"
+        # os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = os.environ.get("AIRFLOW_HOME", ".") + "/gcp_credentials.json"
 
         # Initialize logging for promotion operations
         self.logger = get_logger("promote_staging_tables")

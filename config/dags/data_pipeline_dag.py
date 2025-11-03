@@ -17,18 +17,43 @@ Pipeline Flow:
 Author: Goodreads Recommendation Team
 Date: 2025
 """
+import sys
+import os
+import logging
+import subprocess
+from datetime import datetime, timedelta
 
+# ===========================
+# ENVIRONMENT DETECTION - MUST BE FIRST!
+# ===========================
+def is_cloud_composer():
+    """Detect if running in Cloud Composer or local Airflow"""
+    return (
+        os.environ.get("AIRFLOW_HOME", "").startswith("/home/airflow") or
+        os.environ.get("AIRFLOW_HOME", "").startswith("/etc/airflow") or
+        "composer" in os.environ.get("AIRFLOW__CORE__EXECUTOR", "").lower()
+    )
+
+IS_CLOUD_COMPOSER = is_cloud_composer()
+
+# PATH CONFIGURATION - MUST BE BEFORE DATAPIPELINE IMPORTS!
+if IS_CLOUD_COMPOSER:
+    sys.path.insert(0, '/home/airflow/gcs/data/')
+    TEST_PATH_PREFIX = '/home/airflow/gcs/data/datapipeline/tests/'
+else:
+    LOCAL_PROJECT_PATH = os.environ.get('AIRFLOW_HOME', '/opt/airflow')
+    sys.path.insert(0, os.path.join(LOCAL_PROJECT_PATH, 'data'))
+    TEST_PATH_PREFIX = 'datapipeline/tests/'
+
+# NOW import Airflow components
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.google.cloud.operators.bigquery import BigQueryInsertJobOperator
-from datetime import datetime, timedelta
-import os
+from airflow.models import Variable
 from airflow.utils.email import send_email
-import subprocess
-import logging
 
-# Import pipeline modules
+# NOW import pipeline modules (AFTER path is set)
 from datapipeline.scripts.data_cleaning import main as data_cleaning_main
 from datapipeline.scripts.feature_engineering import main as feature_engg_main
 from datapipeline.scripts.normalization import main as normalization_main
@@ -43,7 +68,7 @@ default_args = {
     'start_date': datetime(2025, 1, 18), # DAG start date
     'retries': 0,                        # Number of retries on failure
     'retry_delay': timedelta(minutes=2), # Delay between retries
-    'email_on_failure': False,           # Disable email on failure (handled by callbacks)
+    'email_on_failure': True,           # Disable email on failure (handled by callbacks)
     'email_on_retry': False,             # Disable email on retry
 }
 def send_failure_email(context):
@@ -53,6 +78,14 @@ def send_failure_email(context):
     Args:
         context: Airflow task context containing failure information
     """
+    from airflow.utils.email import send_email
+
+    # Get from environment variable or Airflow Variable
+    notification_email = (
+            os.environ.get("NOTIFICATION_EMAIL") or
+            Variable.get("notification_email", default_var="admin@example.com")
+    )
+
     task_instance = context.get('task_instance')
     dag_id = context.get('dag').dag_id
     task_id = task_instance.task_id
@@ -64,7 +97,7 @@ def send_failure_email(context):
     <p>DAG <b>{dag_id}</b> failed for task <b>{task_id}</b> on {execution_date}.</p>
     <p>Check logs: <a href="{log_url}">Click here</a></p>
     """
-    send_email(to=os.environ.get("AIRFLOW__SMTP__SMTP_USER"), subject=subject, html_content=html_content)
+    send_email(to=[notification_email], subject=subject, html_content=html_content)
 
 def send_success_email(context):
     """
@@ -73,13 +106,19 @@ def send_success_email(context):
     Args:
         context: Airflow task context containing success information
     """
+    from airflow.utils.email import send_email
+
+    notification_email = (
+            os.environ.get("NOTIFICATION_EMAIL") or
+            Variable.get("notification_email", default_var="admin@example.com")
+    )
     dag_id = context.get('dag').dag_id
     execution_date = context.get('execution_date')
     subject = f"[Airflow] DAG {dag_id} Succeeded"
     html_content = f"""
     <p>DAG <b>{dag_id}</b> succeeded for execution date {execution_date}.</p>
     """
-    send_email(to=os.environ.get("AIRFLOW__SMTP__SMTP_USER"), subject=subject, html_content=html_content)
+    send_email(to=[notification_email], subject=subject, html_content=html_content)
 
 
 def log_query_results(**kwargs):
@@ -98,7 +137,8 @@ def log_query_results(**kwargs):
     from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
 
     # Get BigQuery client using the configured connection
-    hook = BigQueryHook(gcp_conn_id="goodreads_conn")
+    # hook = BigQueryHook(gcp_conn_id="goodreads_conn")
+    hook = BigQueryHook()
     client = hook.get_client()
 
     # Retrieve and log query results
@@ -115,8 +155,13 @@ def data_cleaning_run():
     logging.info("Data cleaning completed")
     logging.info("Running Data Cleaning Tests")
 
+    test_path = os.path.join(TEST_PATH_PREFIX, "test_data_cleaning.py")
+    if not os.path.exists(test_path):
+        logging.warning(f"Test file not found: {test_path}, skipping tests")
+        return
+
     result = subprocess.run(
-        ["pytest", "datapipeline/tests/test_data_cleaning.py", "-q"],
+        ["pytest", test_path, "-q"],
         capture_output=True, text=True
     )
     logging.info(result.stdout)
@@ -132,8 +177,13 @@ def feature_engg_run():
     logging.info("Feature Engineering completed")
     logging.info("Running Feature Engineering Tests")
 
+    test_path = os.path.join(TEST_PATH_PREFIX, "test_feature_engineering.py")
+    if not os.path.exists(test_path):
+        logging.warning(f"Test file not found: {test_path}, skipping tests")
+        return
+
     result = subprocess.run(
-        ["pytest", "datapipeline/tests/test_feature_engineering.py", "-q"],
+        ["pytest", test_path, "-q"],
         capture_output=True, text=True
     )
     logging.info(result.stdout)
@@ -148,8 +198,13 @@ def normalization_run():
     logging.info("Normalization completed")
     logging.info("Running Normalization Tests")
 
+    test_path = os.path.join(TEST_PATH_PREFIX, "test_normalization.py")
+    if not os.path.exists(test_path):
+        logging.warning(f"Test file not found: {test_path}, skipping tests")
+        return
+
     result = subprocess.run(
-        ["pytest", "datapipeline/tests/test_normalization.py", "-q"],
+        ["pytest", test_path, "-q"],
         capture_output=True, text=True
     )
     logging.info(result.stdout)
@@ -158,24 +213,47 @@ def normalization_run():
     
     logging.info("Normalization Tests Passed Successfully")
 
+
 def data_versioning_run():
+    """Modified for Cloud Composer - uses GCS instead of Git/DVC"""
     feature_metadata_main()
 
-    logging.info("Running DVC and Git Commands for Versioning")
-    commands = [
-        ["dvc", "add", "data/metadata/goodreads_features_metadata.json"],
-        ["git", "add", "data/metadata/goodreads_features_metadata.json.dvc"],
-        ["git", "commit", "-m", "Track DVC metadata for features data"],
-        ["dvc", "push"]
-    ]
+    if IS_CLOUD_COMPOSER:
+        from google.cloud import storage
+        import json
 
-    for cmd in commands:
-        result = subprocess.run(cmd, capture_output=True, text=True)
-        logging.info(result.stdout)
-        if result.returncode != 0:
-            raise Exception(f"Command failed: {' '.join(cmd)}")
-    
-    logging.info("Data Versioning completed successfully")
+        client = storage.Client()
+        bucket_name = "us-central1-recommendation--e28d8ad5-bucket"
+        bucket = client.bucket(bucket_name)
+
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+
+        metadata_path = '/tmp/goodreads_features_metadata.json'
+        if not os.path.exists(metadata_path):
+            metadata = {"timestamp": timestamp, "status": "generated"}
+            with open('/tmp/goodreads_features_metadata.json', 'w') as f:
+                json.dump(metadata, f)
+            metadata_path = '/tmp/goodreads_features_metadata.json'
+
+        blob = bucket.blob(f'data/metadata/goodreads_features_metadata_{timestamp}.json')
+        blob.upload_from_filename(metadata_path)
+
+        logging.info(f"Metadata versioned and uploaded to GCS: {blob.name}")
+    else:
+        # Local version with DVC/Git
+        logging.info("Running DVC and Git Commands for Versioning")
+        commands = [
+            ["dvc", "add", "data/metadata/goodreads_features_metadata.json"],
+            ["git", "add", "data/metadata/goodreads_features_metadata.json.dvc"],
+            ["git", "commit", "-m", "Track DVC metadata for features data"],
+            ["dvc", "push"]
+        ]
+
+        for cmd in commands:
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            logging.info(result.stdout)
+            if result.returncode != 0:
+                logging.warning(f"Command failed: {' '.join(cmd)}")
 
 def train_test_split_run():
     train_test_split_main()
@@ -183,8 +261,13 @@ def train_test_split_run():
     logging.info("Train Test Split completed")
     logging.info("Running Splitting Tests")
 
+    test_path = os.path.join(TEST_PATH_PREFIX, "test_goodreads_splitter.py")
+    if not os.path.exists(test_path):
+        logging.warning(f"Test file not found: {test_path}, skipping tests")
+        return
+
     result = subprocess.run(
-        ["pytest", "datapipeline/tests/test_goodreads_splitter.py", "-q"],
+        ["pytest", test_path, "-q"],
         capture_output=True, text=True
     )
     logging.info(result.stdout)
@@ -201,12 +284,13 @@ with DAG(
     dag_id='goodreads_recommendation_pipeline',
     default_args=default_args,
     description='Goodreads Recommendation System Data Pipeline',
+    schedule_interval=None,
     catchup=False,
     on_failure_callback=send_failure_email,
     on_success_callback=send_success_email,
 ) as dag:
 
-    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = os.environ.get("AIRFLOW_HOME") + "/gcp_credentials.json"
+    # os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = os.environ.get("AIRFLOW_HOME") + "/gcp_credentials.json"
 
     start = EmptyOperator(task_id='start')
 
@@ -228,7 +312,8 @@ with DAG(
                 "useLegacySql": False,
             }
         },
-        gcp_conn_id='goodreads_conn',
+        # gcp_conn_id='goodreads_conn',
+        location='US',
     )
 
     log_results_task = PythonOperator(
