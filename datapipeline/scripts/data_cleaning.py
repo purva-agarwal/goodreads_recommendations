@@ -97,47 +97,64 @@ class DataCleaning:
 
                 -- Step 1: Compute author-wise medians (for cleaning)
                 author_medians AS (
-                SELECT
-                    author_id,
-                    APPROX_QUANTILES(NULLIF(publication_year, 0), 2)[OFFSET(1)] AS publication_year_median,
-                    APPROX_QUANTILES(NULLIF(num_pages, 0), 2)[OFFSET(1)] AS num_pages_median
-                FROM main
-                GROUP BY author_id
+                    SELECT
+                        author_id,
+                        APPROX_QUANTILES(NULLIF(publication_year, 0), 2)[OFFSET(1)] AS publication_year_median,
+                        APPROX_QUANTILES(NULLIF(num_pages, 0), 2)[OFFSET(1)] AS num_pages_median
+                    FROM main
+                    GROUP BY author_id
                 ),
 
-                -- Step 2: Replace missing/zero values using author medians
+                -- Step 2: Compute global medians (fallback)
+                global_medians AS (
+                    SELECT
+                        APPROX_QUANTILES(NULLIF(publication_year, 0), 2)[OFFSET(1)] AS global_publication_year_median,
+                        APPROX_QUANTILES(NULLIF(num_pages, 0), 2)[OFFSET(1)] AS global_num_pages_median
+                    FROM main
+                ),
+
+                -- Step 3: Replace missing/zero values using author median, else global median
                 cleaned AS (
-                SELECT
-                    m.*,
-                    COALESCE(NULLIF(m.publication_year, 0), a.publication_year_median) AS publication_year_cleaned,
-                    COALESCE(NULLIF(m.num_pages, 0), a.num_pages_median) AS num_pages_cleaned
-                FROM main m
-                LEFT JOIN author_medians a
-                ON m.author_id = a.author_id
+                    SELECT
+                        m.*,
+                        CASE 
+                            WHEN m.publication_year IS NULL OR m.publication_year = 0 THEN 
+                                COALESCE(a.publication_year_median, g.global_publication_year_median)
+                            ELSE m.publication_year
+                        END AS publication_year_cleaned,
+
+                        CASE 
+                            WHEN m.num_pages IS NULL OR m.num_pages = 0 THEN 
+                                COALESCE(a.num_pages_median, g.global_num_pages_median)
+                            ELSE m.num_pages
+                        END AS num_pages_cleaned
+                    FROM main m
+                    LEFT JOIN author_medians a ON m.author_id = a.author_id
+                    CROSS JOIN global_medians g
                 ),
 
-                -- Step 3: Compute global quartiles on cleaned values
+                -- Step 4: Compute global quartiles on cleaned values
                 global_stats AS (
-                SELECT
-                    APPROX_QUANTILES(publication_year_cleaned, 4)[OFFSET(1)] AS publication_year_q1,
-                    APPROX_QUANTILES(publication_year_cleaned, 4)[OFFSET(3)] AS publication_year_q3,
-                    APPROX_QUANTILES(num_pages_cleaned, 4)[OFFSET(1)] AS num_pages_q1,
-                    APPROX_QUANTILES(num_pages_cleaned, 4)[OFFSET(3)] AS num_pages_q3
-                FROM cleaned
+                    SELECT
+                        APPROX_QUANTILES(publication_year_cleaned, 4)[OFFSET(1)] AS publication_year_q1,
+                        APPROX_QUANTILES(publication_year_cleaned, 4)[OFFSET(3)] AS publication_year_q3,
+                        APPROX_QUANTILES(num_pages_cleaned, 4)[OFFSET(1)] AS num_pages_q1,
+                        APPROX_QUANTILES(num_pages_cleaned, 4)[OFFSET(3)] AS num_pages_q3
+                    FROM cleaned
                 )
 
-                -- Step 4️⃣: Flag outliers using global IQR rule
+                -- Step 5: Flag outliers using global IQR rule
                 SELECT DISTINCT
-                {select_sql},
-                c.publication_year_cleaned,
-                c.num_pages_cleaned,
-                CASE
-                    WHEN c.publication_year_cleaned < (g.publication_year_q1 - 1.5 * (g.publication_year_q3 - g.publication_year_q1))
-                    OR c.publication_year_cleaned > (g.publication_year_q3 + 1.5 * (g.publication_year_q3 - g.publication_year_q1))
-                    OR c.num_pages_cleaned < (g.num_pages_q1 - 1.5 * (g.num_pages_q3 - g.num_pages_q1))
-                    OR c.num_pages_cleaned > (g.num_pages_q3 + 1.5 * (g.num_pages_q3 - g.num_pages_q1))
-                    THEN TRUE ELSE FALSE
-                END AS is_outlier
+                    {select_sql},
+                    c.publication_year_cleaned,
+                    c.num_pages_cleaned,
+                    CASE
+                        WHEN c.publication_year_cleaned < (g.publication_year_q1 - 1.5 * (g.publication_year_q3 - g.publication_year_q1))
+                        OR c.publication_year_cleaned > (g.publication_year_q3 + 1.5 * (g.publication_year_q3 - g.publication_year_q1))
+                        OR c.num_pages_cleaned < (g.num_pages_q1 - 1.5 * (g.num_pages_q3 - g.num_pages_q1))
+                        OR c.num_pages_cleaned > (g.num_pages_q3 + 1.5 * (g.num_pages_q3 - g.num_pages_q1))
+                        THEN TRUE ELSE FALSE
+                    END AS is_outlier
                 FROM cleaned c
                 CROSS JOIN global_stats g;
 
