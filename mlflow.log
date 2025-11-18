@@ -1,0 +1,67 @@
+/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/mlflow/server/handlers.py:256: FutureWarning: Filesystem tracking backend (e.g., './mlruns') is deprecated. Please switch to a database backend (e.g., 'sqlite:///mlflow.db'). For feedback, see: https://github.com/mlflow/mlflow/issues/18534
+  return FileStore(store_uri, artifact_uri)
+/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/mlflow/server/handlers.py:285: FutureWarning: Filesystem model registry backend (e.g., './mlruns') is deprecated. Please switch to a database backend (e.g., 'sqlite:///mlflow.db'). For feedback, see: https://github.com/mlflow/mlflow/issues/18534
+  return FileStore(store_uri)
+[MLflow] Security middleware enabled with default settings (localhost-only). To allow connections from other hosts, use --host 0.0.0.0 and configure --allowed-hosts and --cors-allowed-origins.
+INFO:     Uvicorn running on http://127.0.0.1:5000 (Press CTRL+C to quit)
+INFO:     Started parent process [2237]
+INFO:     Started server process [2240]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Started server process [2241]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Started server process [2239]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Started server process [2242]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     127.0.0.1:52336 - "GET /health HTTP/1.1" 200 OK
+/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/mlflow/server/handlers.py:256: FutureWarning: Filesystem tracking backend (e.g., './mlruns') is deprecated. Please switch to a database backend (e.g., 'sqlite:///mlflow.db'). For feedback, see: https://github.com/mlflow/mlflow/issues/18534
+  return FileStore(store_uri, artifact_uri)
+INFO:     127.0.0.1:52340 - "GET /api/2.0/mlflow/experiments/get-by-name?experiment_name=bigquery_ml_training HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52340 - "POST /api/2.0/mlflow/runs/create HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52340 - "POST /api/2.0/mlflow/runs/log-parameter HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52340 - "POST /api/2.0/mlflow/runs/log-parameter HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52340 - "POST /api/2.0/mlflow/runs/log-parameter HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52340 - "POST /api/2.0/mlflow/runs/log-parameter HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52340 - "POST /api/2.0/mlflow/runs/log-parameter HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52340 - "POST /api/2.0/mlflow/runs/log-parameter HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52340 - "POST /api/2.0/mlflow/runs/log-metric HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52340 - "POST /api/2.0/mlflow/runs/log-metric HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52340 - "POST /api/2.0/mlflow/runs/log-metric HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52340 - "POST /api/2.0/mlflow/runs/log-metric HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52340 - "POST /api/2.0/mlflow/runs/log-metric HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52340 - "POST /api/2.0/mlflow/runs/log-metric HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52340 - "POST /api/2.0/mlflow/runs/log-metric HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52340 - "POST /api/2.0/mlflow/runs/log-metric HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52340 - "POST /api/2.0/mlflow/runs/log-metric HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52340 - "POST /api/2.0/mlflow/runs/log-metric HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52340 - "POST /api/2.0/mlflow/runs/log-metric HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52340 - "GET /api/2.0/mlflow/runs/get?run_uuid=1b7d19a441844c27b18fbdc12091f152&run_id=1b7d19a441844c27b18fbdc12091f152 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52340 - "PUT /api/2.0/mlflow-artifacts/artifacts/923083200099565462/1b7d19a441844c27b18fbdc12091f152/artifacts/evaluation_reports/boosted_tree_regressor_evaluation_report.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52340 - "GET /api/2.0/mlflow/runs/get?run_uuid=1b7d19a441844c27b18fbdc12091f152&run_id=1b7d19a441844c27b18fbdc12091f152 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52340 - "POST /api/2.0/mlflow/runs/update HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52340 - "POST /api/2.0/mlflow/runs/create HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52340 - "POST /api/2.0/mlflow/runs/log-parameter HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52340 - "POST /api/2.0/mlflow/runs/log-parameter HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52340 - "POST /api/2.0/mlflow/runs/log-parameter HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52340 - "POST /api/2.0/mlflow/runs/log-parameter HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52340 - "POST /api/2.0/mlflow/runs/log-parameter HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52340 - "POST /api/2.0/mlflow/runs/log-parameter HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52340 - "POST /api/2.0/mlflow/runs/log-metric HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52340 - "POST /api/2.0/mlflow/runs/log-metric HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52340 - "POST /api/2.0/mlflow/runs/log-metric HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52340 - "POST /api/2.0/mlflow/runs/log-metric HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52340 - "POST /api/2.0/mlflow/runs/log-metric HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52340 - "POST /api/2.0/mlflow/runs/log-metric HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52340 - "POST /api/2.0/mlflow/runs/log-metric HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52340 - "POST /api/2.0/mlflow/runs/log-metric HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52340 - "POST /api/2.0/mlflow/runs/log-metric HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52340 - "POST /api/2.0/mlflow/runs/log-metric HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52340 - "POST /api/2.0/mlflow/runs/log-metric HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52340 - "GET /api/2.0/mlflow/runs/get?run_uuid=8918393dc9264104bd6e5e1d170877d5&run_id=8918393dc9264104bd6e5e1d170877d5 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52340 - "PUT /api/2.0/mlflow-artifacts/artifacts/923083200099565462/8918393dc9264104bd6e5e1d170877d5/artifacts/evaluation_reports/matrix_factorization_evaluation_report.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52340 - "GET /api/2.0/mlflow/runs/get?run_uuid=8918393dc9264104bd6e5e1d170877d5&run_id=8918393dc9264104bd6e5e1d170877d5 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52340 - "POST /api/2.0/mlflow/runs/update HTTP/1.1" 200 OK
