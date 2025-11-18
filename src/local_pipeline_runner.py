@@ -11,30 +11,19 @@ if __name__ == "__main__":
         (10, 0.05, 40),
         (25, 0.05, 40),
         (40, 0.05, 40),
-        (25, 0.01, 40),
-        (25, 0.1, 40),
-        (25, 0.5, 40),
-        (25, 0.05, 20),
-        (25, 0.05, 50),
-        (25, 0.05, 60)
     ]
 
     bt_param_list = [
         (4, 10),
         (5, 10),
         (6, 10),
-        (7, 10),
-        (8, 10),
-        (6, 25),
-        (6, 50),
-        (6, 75),
-        (6, 100)
     ]
 
     for mf_param, bt_param in zip(mf_parameter_list, bt_param_list):
         factors, reg, iterations = mf_param
         depth, n_trees = bt_param
         print(f"Running MF: num_factors={factors}, l2_reg={reg}, max_iterations={iterations}")
+        print(f"Running BT: max_tree_depth={depth}, num_parallel_tree={n_trees}")
         trainer = BigQueryMLModelTraining()
         trainer.run(
             mf_hyperparams={
@@ -47,7 +36,7 @@ if __name__ == "__main__":
                 "num_parallel_tree": n_trees
             }
         )
-        print("Completed MF run")
+        print("Completed run")
 
         registrar = RegisterBQMLModels()
         registrar.main()
