@@ -38,8 +38,6 @@ if __name__ == "__main__":
         )
         print("Completed run")
 
-        registrar = RegisterBQMLModels()
-        registrar.main()
         predictor = BiasReadyPredictionGenerator()
         predictor.run(model_types=['boosted_tree', 'matrix_factorization'])
         ModelEvaluationPipelineMain()
