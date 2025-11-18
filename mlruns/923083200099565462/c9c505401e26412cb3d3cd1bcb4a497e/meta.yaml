@@ -1,0 +1,14 @@
+artifact_uri: mlflow-artifacts:/923083200099565462/c9c505401e26412cb3d3cd1bcb4a497e/artifacts
+end_time: 1763509268826
+entry_point_name: ''
+experiment_id: '923083200099565462'
+lifecycle_stage: active
+run_id: c9c505401e26412cb3d3cd1bcb4a497e
+run_name: rollback_goodreads_boosted_tree_regressor_20251118_234105
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1763509265713
+status: 3
+tags: []
+user_id: runner
