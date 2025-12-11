@@ -1,5 +1,5 @@
 {
-  "timestamp": "2025-12-11T07:07:31.343167",
+  "timestamp": "2025-12-11T21:59:55.926624",
   "selected_model": {
     "model_name": "boosted_tree_regressor",
     "predictions_table": "recommendation-system-475301.books.boosted_tree_rating_predictions",
