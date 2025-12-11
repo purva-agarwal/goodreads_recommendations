@@ -1,0 +1,14 @@
+artifact_uri: mlflow-artifacts:/923083200099565462/6e5cd532478b4fb8b23cad9e183db252/artifacts
+end_time: 1765436975738
+entry_point_name: ''
+experiment_id: '923083200099565462'
+lifecycle_stage: active
+run_id: 6e5cd532478b4fb8b23cad9e183db252
+run_name: validate_boosted_tree_20251211_070926
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1765436966937
+status: 3
+tags: []
+user_id: runner
