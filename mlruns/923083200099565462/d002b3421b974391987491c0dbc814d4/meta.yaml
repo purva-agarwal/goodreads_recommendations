@@ -1,0 +1,14 @@
+artifact_uri: mlflow-artifacts:/923083200099565462/d002b3421b974391987491c0dbc814d4/artifacts
+end_time: 1765488171097
+entry_point_name: ''
+experiment_id: '923083200099565462'
+lifecycle_stage: active
+run_id: d002b3421b974391987491c0dbc814d4
+run_name: evaluation_boosted_tree_regressor_20251211_212248
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1765488168354
+status: 3
+tags: []
+user_id: runner
