@@ -1,0 +1,14 @@
+artifact_uri: mlflow-artifacts:/923083200099565462/0db549f7e7d34bfe85ea4f96109d5805/artifacts
+end_time: 1765435216620
+entry_point_name: ''
+experiment_id: '923083200099565462'
+lifecycle_stage: active
+run_id: 0db549f7e7d34bfe85ea4f96109d5805
+run_name: evaluation_matrix_factorization_20251211_064014
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1765435214140
+status: 3
+tags: []
+user_id: runner
